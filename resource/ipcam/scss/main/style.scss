@@ -1,0 +1,91 @@
+@charset "UTF-8";
+
+body {
+  width: 100%;
+  height: 100%;
+
+  div.jumbotron {
+    padding: 2rem 1rem;
+    margin-bottom: 0px;
+
+    h3 {
+      font-weight: bold;
+    }
+
+    h5 {
+      font-weight: lighter;
+    }
+  }
+
+  div#switches {
+    width: 15%;
+    height: 100%;
+    text-align: center;
+
+    button {
+      width: 90%;
+    }
+  }
+
+  div#preview {
+    width: 60%;
+    height: 100%;
+
+    text-align: center;
+    position: relative;
+
+    div#preview-wrapper {
+      position: relative;
+
+      div#state {
+        position: absolute;
+        top: 0px;
+        left: 16px;
+        font-weight: bold;
+        font-size: 24pt;
+      }
+
+      canvas {
+        width: 100%;
+        border: solid 1px rgba(0, 0, 0, 0.3);
+      }
+    }
+  }
+
+  div#config {
+    width: 25%;
+    height: 100%;
+    overflow: hidden;
+
+    select {
+      font-size: 80%;
+    }
+
+    .irs {
+      font-family: monospace;
+    }
+
+    .irs--sharp {
+			.irs-bar {
+				background-color: cornflowerblue;
+			}
+
+      .irs-handle {
+        background-color: dodgerblue;
+      }
+
+			.irs-handle > i:first-child {
+				border-top-color: dodgerblue;
+			}
+
+			.irs-min, .irs-max {
+				visibility: hidden;
+				background-color: transparent;
+			}
+
+			.irs-from, .irs-to, .irs-single {
+				background-color: gray;
+			}
+    }
+  }
+}

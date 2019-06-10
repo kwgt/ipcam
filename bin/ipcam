@@ -1,0 +1,132 @@
+#! /usr/bin/env ruby
+# coding: utf-8
+
+#
+# Sample for v4l2-ruby
+#
+#   Copyright (C) 2019 Hiroshi Kuwagata <kgt9221@gmail.com>
+#
+
+require 'pathname'
+require 'optparse'
+require 'logger'
+
+Thread.abort_on_exception = true
+
+Signal.trap(:INT) {IPCam.stop}
+Signal.trap(:TERM) {IPCam.stop}
+
+#
+# アプリ全体で参照する定数の定義
+#
+TRADITIONAL_NAME = "IP camera"
+APP_NAME         = "ipcam"
+
+BASE_DIR         = Pathname.new(File.expand_path(__FILE__)).dirname.parent
+LIB_DIR          = BASE_DIR + "lib"
+RESOURCE_DIR     = BASE_DIR + "resource"
+APP_LIB_DIR      = LIB_DIR + APP_NAME
+APP_RESOURCE_DIR = RESOURCE_DIR + APP_NAME
+
+#
+# バージョン定数の読み込み
+#
+require "#{APP_LIB_DIR + "version"}"
+
+#
+# コマンドラインオプションの評価
+#
+OptionParser.new { |opt|
+  log = {
+    :device     => nil,
+    :shift_age  => 10,
+    :shift_size => 1024 * 1024,
+    :level      => :INFO
+  }
+
+  opt.version = IPCam::VERSION
+  opt.banner  = "[options] [device-file]"
+
+  opt.on('--bind=ADDR') { |val|
+    $bind_addr = val
+  }
+
+  opt.on('--port=PORT', Integer) { |val|
+    $bind_port = val
+  }
+
+  opt.on('--websoket=PORT', Integer) { |val|
+    $ws_port   = val
+  }
+
+  opt.on('-d', '--database-file=FILE') { |val|
+    $db_file   = Pathname.new(val)
+  }
+
+  opt.on('--log-file=FILE') { |val|
+    log[:device] = val
+  } 
+
+  opt.on('--log-age=AGE') { |val|
+    case val.downcase
+    when /^\d+$/
+      log[:shift_age]  = val.to_i
+
+    when /^(dayly|weekly|monthly)$/
+      log[:shift_age]  = val
+
+    else
+      raise("Invalid log age spec '#{val}'.")
+    end
+  }
+
+  opt.on('--log-size=SIZE', Integer) { |val|
+    log[:shift_size] = val
+  }
+
+  opt.on('--log-level=LEVEL') { |val|
+    log[:level] = val.upcase.to_sym
+  }
+
+  opt.on('--develop-mode') {
+    $develop_mode = true
+  }
+
+  opt.order!(ARGV)
+
+
+  if log[:device]
+    $log_device = File.open(log[:device], "a")
+    $log_device.sync = true
+  else
+    $log_device = STDOUT
+  end
+
+  $logger      = Logger.new($log_device,
+				                    log[:shift_age],
+                            log[:shift_size],
+                            :level => log[:level],
+                            :datetime_format => "%Y-%m-%dT%H:%M:%S")
+
+  $bind_addr ||= "::"
+  $http_port ||= 4567
+  $ws_port   ||= 4568
+  $db_file   ||= Pathname.new(ENV['HOME']) + ".#{APP_NAME}.db"
+  $target      = ARGV[0] || "/dev/video0"
+
+  if $db_file.exist? and (not $db_file.writable?)
+    raise("#{$db_file.to_s} is not writable")
+  end
+}
+
+#
+# アプリケーション本体の読み込み
+#
+require "#{APP_LIB_DIR + "main"}"
+require "#{APP_LIB_DIR + "webserver"}"
+require "#{APP_LIB_DIR + "websock"}"
+
+#
+# アプリケーションの起動
+#
+IPCam.start
