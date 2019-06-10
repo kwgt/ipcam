@@ -44,8 +44,8 @@ OptionParser.new { |opt|
     :level      => :INFO
   }
 
-  opt.version = IPCam::VERSION
-  opt.banner  = "[options] [device-file]"
+  opt.version  = IPCam::VERSION
+  opt.banner  += " [DEVICE-FILE]"
 
   opt.on('--bind=ADDR') { |val|
     $bind_addr = val
@@ -53,10 +53,7 @@ OptionParser.new { |opt|
 
   opt.on('--port=PORT', Integer) { |val|
     $bind_port = val
-  }
-
-  opt.on('--websoket=PORT', Integer) { |val|
-    $ws_port   = val
+    $ws_port   = val + 1
   }
 
   opt.on('-d', '--database-file=FILE') { |val|
