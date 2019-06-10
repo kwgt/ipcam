@@ -9,8 +9,8 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Hirosho Kuwagata"]
   spec.email         = ["kgt9221@gmail.com"]
 
-  spec.summary       = %q{spectrum analyzer for wav file.}
-  spec.description   = %q{spectrum analyzer for wav file.}
+  spec.summary       = %q{Sample application for "V4L2 for Ruby".}
+  spec.description   = %q{Sample application for "V4L2 for Ruby".}
   spec.homepage      = "https://github.com/kwgt/ipcam"
   spec.license       = "MIT"
 
