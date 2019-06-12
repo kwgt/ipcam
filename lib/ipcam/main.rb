@@ -13,6 +13,7 @@ require 'msgpack'
 module IPCam
   BASIS_SIZE = 640 * 480
   Stop       = Class.new(Exception)
+  Restart    = Class.new(Exception)
 
   class << self
     def start
@@ -44,12 +45,7 @@ module IPCam
     end
 
     def restart_camera
-      @cam_thr.raise(Stop)
-      @cam_thr.join
-
-      @img_que.clear
-
-      @cam_thr = Thread.new {camera_thread}
+      @cam_thr.raise(Restart)
     end
 
     def select_capabilities(cam)
@@ -220,48 +216,61 @@ module IPCam
     private :broadcast
 
     def change_state(state)
-      @state = state
-      broadcast(:change_state, state)
+      flag = @mutex.try_lock
+
+      if @state != state
+        @state = state
+        broadcast(:change_state, state)
+      end
+
+      @mutex.unlock if flag
     end
     private :change_state
 
     def camera_thread
       $logger.info("main") {"camera thread start"}
 
-      @mutex.synchronize {
-        @camera = Video4Linux2::Camera.new($target)
+      @camera = Video4Linux2::Camera.new($target)
+      if not @camera.support_formats.any? {|x| x.fcc == "MJPG"}
+        raise("#{$target} is not support Motion-JPEG")
+      end
 
-        if not @camera.support_formats.any? {|x| x.fcc == "MJPG"}
-          raise("#{$target} is not support Motion-JPEG")
-        end
+      begin
+        @mutex.synchronize {
+          @config = load_settings()
 
-        @config = load_settings()
+          @camera.start
+          change_state(:ALIVE)
+        }
 
-        @camera.start
-        change_state(:ALIVE)
-      }
+        loop {
+          @img_que << @camera.capture
+        }
 
-      loop {
-        @img_que << @camera.capture
-      }
+      rescue Stop
+        $logger.info("main") {"accept stop request"}
+        change_state(:STOP)
 
-    rescue Stop
-      $logger.info("main") {"accept stop request"}
-      change_state(:STOP)
+      rescue Restart
+        $logger.info("main") {"restart camera"}
+        @camera.stop
+        retry
+
+      rescue => e
+        change_state(:ABORT)
+        raise(e)
+
+      ensure
+        @camera.stop if (@camera.busy? rescue false)
+      end
 
     rescue => e
       $logger.error("main") {"camera error occured (#{e.message})"}
       change_state(:ABORT)
 
     ensure
-      begin
-        @camera&.stop if @camera&.busy?
-      rescue
-        #ignore
-      end
       @camera&.close
       @camera = nil
-
       $logger.info("main") {"camera thread stop"}
     end
     private :camera_thread

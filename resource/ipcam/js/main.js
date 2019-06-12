@@ -75,8 +75,10 @@
     height = $('body').height() - $('div.jumbotron').outerHeight(true);
     $('div#main-area').height(height);
 
-    $('div#preview').getNiceScroll().resize();
-    $('div#config').getNiceScroll().resize();
+    setTimeout(() => {
+      $('div#preview').getNiceScroll().resize();
+      $('div#config').getNiceScroll().resize();
+    }, 0);
   }
 
   function setIdentString(str) {
@@ -330,7 +332,9 @@
     previewCanvas.width  = imageWidth;
     previewCanvas.height = imageHeight;
 
-    $('div#preview').getNiceScroll().resize();
+    setTimeout(() => {
+      $('div#preview').getNiceScroll().resize();
+    }, 0);
   }
 
   function updatePreviewCanvas(img) {
@@ -418,7 +422,9 @@
 
           setControlForm(info["controls"]);
 
-          $('div#config').getNiceScroll().resize();
+          setTimeout(() => {
+            $('div#config').getNiceScroll().resize();
+          }, 0);
         });
 
       $.when(pr1, pr2)
@@ -432,8 +438,6 @@
       $('select#image-size > option').remove();
       $('select#framerate > option').remove();
       $('div#controls').empty();
-
-      $('div#config').getNiceScroll().resize();
 
       setupScreenSize();
     }
