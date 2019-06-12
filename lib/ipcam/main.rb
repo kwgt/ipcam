@@ -20,7 +20,7 @@ module IPCam
 
       @mutex   = Mutex.new
       @camera  = nil
-      @state   = :READY
+      @state   = :STOP
       @img_que = Thread::Queue.new
       @cam_thr = Thread.new {camera_thread}
       @snd_thr = Thread.new {sender_thread}
@@ -169,8 +169,16 @@ module IPCam
 
     def restore_db
       begin
-        blob  = $db_file.binread
-        @db   = MessagePack.unpack(blob, :symbolize_keys => true)
+        blob = $db_file.binread
+        @db  = MessagePack.unpack(blob, :symbolize_keys => true)
+
+        @db.keys { |bus|
+          @db[bus].keys { |name|
+            @db[bus][name.to_s] = @db[bus].delete(name)
+          }
+
+          @db[bus.to_s] = @db.deleye(bus)
+        }
 
       rescue
         begin
@@ -179,13 +187,13 @@ module IPCam
           # ignore
         end
           
-        @db   = {}
+        @db  = {}
       end
     end
     private :restore_db
 
     def load_settings
-      ret = @db.dig(@camera.bus, @camera.name)
+      ret = @db.dig(@camera.bus.to_sym, @camera.name.to_sym)
 
       if not ret
         ret = create_setting_entry(@camera)
@@ -211,6 +219,12 @@ module IPCam
     end
     private :broadcast
 
+    def change_state(state)
+      @state = state
+      broadcast('change_state', state)
+    end
+    private :change_state
+
     def camera_thread
       $logger.info("main") {"camera thread start"}
 
@@ -224,7 +238,7 @@ module IPCam
         @config = load_settings()
 
         @camera.start
-        @state = :BUSY
+        change_state(:ALIVE)
       }
 
       loop {
@@ -233,11 +247,11 @@ module IPCam
 
     rescue Stop
       $logger.info("main") {"accept stop request"}
-      @state = :READY
+      change_state(:STOP)
 
     rescue => e
       $logger.error("main") {"camera error occured (#{e.message})"}
-      @state = :ABORTED
+      change_state(:ABORT)
 
     ensure
       @camera&.stop if @camera&.busy?
@@ -279,17 +293,17 @@ module IPCam
     end
 
     def get_ident_string
-      raise("state violation") if @state != :BUSY
+      raise("state violation") if @state != :ALIVE
       return "#{@camera.name}@#{@camera.bus}"
     end
 
     def get_config
-      raise("state violation") if @state != :BUSY
+      raise("state violation") if @state != :ALIVE
       return @config
     end
 
     def set_image_size(width, height)
-      raise("state violation") if @state != :BUSY
+      raise("state violation") if @state != :ALIVE
 
       @mutex.synchronize {
         @config[:image_width]  = width
@@ -301,7 +315,7 @@ module IPCam
     end
 
     def set_framerate(num, deno)
-      raise("state violation") if @state != :BUSY
+      raise("state violation") if @state != :ALIVE
 
       @mutex.synchronize {
         @config[:framerate] = [num, deno]
@@ -312,7 +326,7 @@ module IPCam
     end
 
     def set_control(id, val)
-      raise("state violation") if @state != :BUSY
+      raise("state violation") if @state != :ALIVE
 
       entry = nil
 
@@ -328,9 +342,12 @@ module IPCam
     end
 
     def save_config
+      $logger.info('main') {"save config to #{$db_file.to_s}"}
       @mutex.synchronize {
         $db_file.binwrite(@db.to_msgpack)
       }
+
+      broadcast(:save_complete)
     end
 
     def add_client(que)

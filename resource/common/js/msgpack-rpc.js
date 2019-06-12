@@ -165,7 +165,7 @@ if (!msgpack) {
         };
 
         this.sock.onclose = () => {
-          if (this.onSessionClosed) this.onSessionClosed();
+          this[callback]('session_closed', []);
           this.sock = null;
         };
       }

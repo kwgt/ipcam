@@ -19,14 +19,14 @@
     <div class="jumbotron jumbotron-fluid">
       <div class="container">
         <h3 id="device-file"></h3>
-        <h5 id="device-name"></h3>
+        <h6 id="device-name"></h3>
       </div>
     </div>
 
     <div id="main-area" class="d-flex d-flex-row">
       <div id="switches">
         <div class="form-grounp mt-3">
-          <button class="btn btn-primary" disabled>STOP</button>
+          <button id="action" class="btn btn-primary" disabled>STOP</button>
         </div>
 
         <div class="form-grounp mt-3">
@@ -64,5 +64,8 @@
         </div>
       </div>
     </div>
+
+    <%= render :erb, :"toast/save_complete" %>
+    <%= render :erb, :"toast/url_copied" %>
   </body>
 </html>

@@ -18,6 +18,7 @@
   var session;
   var capabilities;
   var controls;
+  var sliders;
 
   var imageWidth;
   var imageHeight;
@@ -30,42 +31,56 @@
    * declar functions
    */
 
-  function setCameraInfo(info) {
+  function setDeviceFile(name) {
+    $('h3#device-file').text(name);
+  }
+
+  function setState(state) {
     var fg;
     var bg;
+    var lb;
 
-    $('h3#device-file').text(info["device"]);
-
-    switch (info["state"]) {
-      case "READY":
+    switch (state) {
+      case "STOP":
       default:
         fg = "royalblue";
         bg = "white";
+        lb = "START";
         break;
 
-      case "BUSY":
-        fg = "gold";
+      case "ALIVE":
+        fg = "springgreen";
         bg = "black";
+        lb = "STOP";
         break;
 
       case "ABORT":
         fg = "crimson";
         bg = "white";
+        lb = "RECOVER";
+        break;
     }
+
+    $('button#action').text(lb);
 
     $('div#state')
       .css('color', fg)
       .css('-webkit-text-stroke', `0.5px ${bg}`)
-      .text(info["state"]);
+      .text(state);
   }
 
-  function setIdentString(str) {
+  function setupScreenSize() {
     var height;
-
-    $('h5#device-name').text(str);
 
     height = $('body').height() - $('div.jumbotron').outerHeight(true);
     $('div#main-area').height(height);
+
+    $('div#preview').getNiceScroll().resize();
+    $('div#config').getNiceScroll().resize();
+  }
+
+  function setIdentString(str) {
+    $('h6#device-name').text(str);
   }
 
   function sortCapabilities() {
@@ -113,37 +128,43 @@
     return `${ret} fps`;
   }
 
-  function chooseFramerate(rate) {
-    var info;
-    var list;
-    var targ;
+  function findCapability() {
+    var ret;
 
-    targ = rate[0] / rate[1];
-
-    info = capabilities.find((obj) => {
+    ret = capabilities.find((obj) => {
       return ((obj.width == imageWidth) && (obj.height == imageHeight));
     });
 
-    list = info["rate"].reduce((m, n) => {m.push(n); return m}, []);
+    return ret;
+  }
+
+  function selectFramerate(rates) {
+    var list;
+    var targ;
+
+    targ = framerate[0] / framerate[1];
+
+    if (!rates) {
+      rates = findCapability()["rate"];
+    }
+
+    list = rates.concat();
+
     list.sort((a, b) => {
       return  Math.abs((a[0] / a[1]) - targ) - Math.abs((b[0] / b[1]) - targ);
     });
 
-    return `${list[0][0]},${list[0][1]}`;
+    $('select#framerate').val(`${list[0][0]},${list[0][1]}`);
   }
 
   function setFramerateSelect() {
     var info;
 
-    /*
-     * フレームレート
-     */
+    $('select#framerate')
+      .empty()
+      .off('change');
 
-    $('select#framerate').empty();
-
-    info = capabilities.find((obj) => {
-      return ((obj.width == imageWidth) && (obj.height == imageHeight));
-    });
+    info = findCapability();
 
     if (info) {
       info["rate"].forEach((obj) => {
@@ -154,8 +175,9 @@
           );
       });
 
+      selectFramerate(info['rate']);
+
       $('select#framerate')
-        .val(chooseFramerate(framerate))
         .on('change', (e) => {;
           let val;
           let res;
@@ -174,8 +196,7 @@
 
     $input = $('<input>')
       .attr('id', `control-${info["id"]}`)
-      .attr('type', 'range')
-      .attr('value', info["value"]);
+      .attr('type', 'range');
 
     $('div#controls')
       .append($('<div>')
@@ -193,17 +214,19 @@
 
     tics = info["max"] - info["min"];
     
-    $input
+    sliders[info["id"]] = $input
       .ionRangeSlider({
-        type:         "single",
-        min:          info["min"],
-        max:          info["max"],
-        step:         info["step"],     
-        skin:         "sharp",
-        keyboard:     true,
-        hide_min_max: true,
-        grid:         true,
-        grid_num:     (tics > 10)? 10: tics,
+        type:               "single",
+        min:                info["min"],
+        max:                info["max"],
+        step:               info["step"],     
+        from:               info["value"],
+        skin:               "sharp",
+        keyboard:           true,
+        hide_min_max:       true,
+        grid:               true,
+        grid_num:           (tics > 10)? 10: tics,
+        prettify_separator: ",",
 
         onFinish: (data) => {
           session.setControl(info["id"], data["from"])
@@ -224,14 +247,17 @@
 
     $('div#controls')
       .append($('<div>')
-        .addClass('pretty p-default my-2')
-        .append($input)
+        .addClass('form-group')
         .append($('<div>')
-          .addClass('state p-primary')
-          .append($('<label>')
-            .addClass('form-label')
-            .attr("for", `control-${info["id"]}`)
-            .text(info["name"])
+          .addClass('pretty p-default my-2')
+          .append($input)
+          .append($('<div>')
+            .addClass('state p-primary')
+            .append($('<label>')
+              .addClass('form-label')
+              .attr("for", `control-${info["id"]}`)
+              .text(info["name"])
+            )
           )
         )
       );
@@ -291,6 +317,8 @@
 
     $('div#controls').append($("<hr>"));
 
+    sliders = {};
+
     info.forEach((entry) => {
       if (entry["type"] == "integer") {
         addIntegerForm(entry);
@@ -317,29 +345,120 @@
                         imageHeight);
   }
 
+  function updateImage(data) {
+    Utils.loadImageFromData(data)
+      .then((img) => {
+        updatePreviewCanvas(img);
+      })
+      .fail((error) => {
+        console.log(error);
+      });
+  }
+
+  function updateImageSize(width, height) {
+    imageWidth  = width;
+    imageHeight = height;
+
+    resizePreviewCanvas();
+    setFramerateSelect();
+  }
+
+  function updateFramerate(num, deno) {
+    framerate = [num, deno]
+    selectFramerate();
+  }
+
+  function updateControl(id, val) {
+    var info;
+
+    info = controls.find((obj) => obj["id"] == id);
+
+    switch (info["type"]) {
+    case "boolean":
+      $(`input#control-${id}`).prop('checked', val);
+      break;
+
+    case "integer":
+      $(`input#control-${id}`).data('ionRangeSlider').update({from:val});
+      break;
+
+    case "menu":
+      $(`select#control-${id}`).val(val);
+      break;
+    }
+
+  }
+
+  function changeState(state) {
+    var pr1;
+    var pr2;
+
+    setState(state);
+
+    if (state == "ALIVE") {
+      pr1 = session.getIdentString()
+        .then((str) => {
+          setIdentString(str);
+        });
+
+      pr2 = session.getConfig()
+        .then((info) => {
+          let rates;
+
+          capabilities = info["capabilities"];
+          controls     = info["controls"];
+          imageWidth   = info["image_width"];
+          imageHeight  = info["image_height"];
+          framerate    = info["framerate"];
+
+          resizePreviewCanvas();
+          sortCapabilities();
+          setImageSizeSelect();
+          setFramerateSelect();
+
+          setControlForm(info["controls"]);
+
+          $('div#config').getNiceScroll().resize();
+        });
+
+      $.when(pr1, pr2)
+        .done(() => {
+          setupScreenSize();
+        });
+
+    } else {
+      $('h6#device-name').text(null);
+
+      $('select#image-size > option').remove();
+      $('select#framerate > option').remove();
+      $('div#controls').empty();
+
+      $('div#config').getNiceScroll().resize();
+
+      setupScreenSize();
+    }
+  }
+
   function startSession() {
     session
       .on('update_image', (data) => {
-        Utils.loadImageFromData(data)
-          .then((img) => {
-            updatePreviewCanvas(img);
-          })
-          .fail((error) => {
-            console.log(error);
-          });
+        updateImage(data);
       })
       .on('update_image_size', (width, height) => {
-        imageWidth  = width;
-        imageHeight = height;
-
-        resizePreviewCanvas();
-        setFramerateSelect();
+        updateImageSize(width, height);
       })
       .on('update_framerate', (num, deno) => {
-        console.log("not implemented yet");
+        updateFramerate(num, deno);
       })
       .on('update_control', (id, val) => {
-        console.log("not implemented yet");
+        updateControl(id, val);
+      })
+      .on('change_state', (state) => {
+        changeState(state);
+      })
+      .on('save_complete', () => {
+        console.log("come");
+        $('#save-complete-toast').toast('show');
       });
 
     session.start()
@@ -347,35 +466,8 @@
         return session.getCameraInfo();
       })
       .then((info) => {
-        setCameraInfo(info);
-
-        if (info["state"] == "BUSY") {
-          session.getIdentString()
-            .then((str) => {
-              setIdentString(str);
-            });
-
-          session.getConfig()
-            .then((info) => {
-              let rates;
-
-              capabilities = info["capabilities"];
-              controls     = info["controls"];
-              imageWidth   = info["image_width"];
-              imageHeight  = info["image_height"];
-              framerate    = info["framerate"];
-
-              sortCapabilities();
-
-              resizePreviewCanvas();
-              setImageSizeSelect();
-              setFramerateSelect();
-
-              setControlForm(info["controls"]);
-
-              $('div#config').getNiceScroll().resize();
-            });
-        }
+        setDeviceFile(info["device"]);
+        changeState(info["state"]);
 
         return session.addNotifyRequest();
       })
@@ -414,6 +506,7 @@
 
         url = `${location.protocol}//${location.host}/stream`;
         Utils.copyToClipboard(url);
+        $('#url-copied-toast').toast('show');
       });
   }
 
@@ -421,6 +514,7 @@
     session       = new Session(WS_URL);
     capabilities  = null;
     controls      = null;
+    sliders       = null;
     imageWidth    = null;
     imageHeight   = null;
     framerate     = null;
@@ -460,6 +554,11 @@
       .done(() => {
         initialize();
       });
+  });
+
+  $(window)
+  .on('resize', () => {
+    setupScreenSize();
   });
 
   /* デフォルトではコンテキストメニューをOFF */

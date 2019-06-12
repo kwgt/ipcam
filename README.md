@@ -18,6 +18,7 @@ Or install it yourself as:
     $ gem install ipcam
 
 ## Usage
+Connect a camera device compatible with V4L2 and start ipcam as follows.
 ```
 ipcam [options] [device-file]
 options:
@@ -30,6 +31,11 @@ options:
         --log-level=LEVEL
         --develop-mode
 ```
+Then connect to port 4567 by http browser and operate. The accessible URLs are as follows.
+
+* http://${HOST}:4567/<br>redicrect to /main
+* http://${HOST}:4567/main<br>preview and settings
+* http://${HOST}:4567/stream<br>http streaming
 
 ### options
 <dl>
