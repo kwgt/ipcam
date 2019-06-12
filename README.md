@@ -61,5 +61,9 @@ Then connect to port 4567 by http browser and operate. The accessible URLs are a
 ### device-file
 specify target device file (ex: /dev/video1). if omittedm,  it will use "/dev/video0".
 
+## etc
+### About image data
+いらすとや(https://www.irasutoya.com/)で配布されている『特撮映画のイラスト』(https://www.irasutoya.com/2018/12/blog-post_90.html)を改変して使用しています。
+
 ## License
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).

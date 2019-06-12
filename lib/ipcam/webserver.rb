@@ -95,6 +95,9 @@ module IPCam
           EOT
 
           port << data
+
+          # データ詰まりを防ぐ為にキューをクリア
+          queue.clean
         }
       end
     end
