@@ -1,3 +1,3 @@
 #! /bin/sh
 
-ruby -Ilib bin/ipcam --develop-mode
+ruby -Ilib bin/ipcam --develop-mode $*

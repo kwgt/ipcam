@@ -221,7 +221,7 @@ module IPCam
 
     def change_state(state)
       @state = state
-      broadcast('change_state', state)
+      broadcast(:change_state, state)
     end
     private :change_state
 
@@ -254,7 +254,11 @@ module IPCam
       change_state(:ABORT)
 
     ensure
-      @camera&.stop if @camera&.busy?
+      begin
+        @camera&.stop if @camera&.busy?
+      rescue
+        #ignore
+      end
       @camera&.close
       @camera = nil
 

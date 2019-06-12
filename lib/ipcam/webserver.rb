@@ -104,7 +104,7 @@ module IPCam
       scss name.to_sym, :views => APP_RESOURCE_DIR + "scss"
     end
 
-    get %r{/(css|js|fonts)/(.+)} do |type, name|
+    get %r{/(css|js|img|fonts)/(.+)} do |type, name|
       path = find_resource(type, name)
       
       if path

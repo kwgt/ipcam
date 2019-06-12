@@ -91,7 +91,6 @@ OptionParser.new { |opt|
 
   opt.order!(ARGV)
 
-
   if log[:device]
     $log_device = File.open(log[:device], "a")
     $log_device.sync = true

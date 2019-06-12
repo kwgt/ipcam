@@ -457,8 +457,10 @@
         changeState(state);
       })
       .on('save_complete', () => {
-        console.log("come");
         $('#save-complete-toast').toast('show');
+      })
+      .on('session_closed', () => {
+        Utils.showAbortShield("session closed");
       });
 
     session.start()
@@ -472,7 +474,7 @@
         return session.addNotifyRequest();
       })
       .fail((error) => {
-        console.log(error);
+        Utils.showAbortShield(error);
       });
   }
 

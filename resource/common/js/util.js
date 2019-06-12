@@ -131,5 +131,15 @@
 
       $text.remove();
     }
+
+    static showAbortShield(html) {
+      $('body').css('overflow', 'hidden');
+
+      $('#abort-shield')
+        .find('p')
+          .html(html)
+        .end()
+        .fadeIn();
+    }
   }
 })();
