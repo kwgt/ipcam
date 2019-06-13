@@ -42,19 +42,13 @@ module IPCam
 
     def start_thread
       @cam_thr = Thread.new {camera_thread}
-      @snd_thr = Thread.new {sender_thread}
     end
     private :start_thread
 
     def stop_thread
       @cam_thr.raise(Stop)
       @cam_thr.join
-
-      @snd_thr.raise(Stop)
-      @snd_thr.join
-
       @cam_thr = nil
-      @snd_thr = nil
     end
     private :stop_thread
 
@@ -250,6 +244,8 @@ module IPCam
         raise("#{$target} is not support Motion-JPEG")
       end
 
+      snd_thr = Thread.new {sender_thread}
+
       begin
         @mutex.synchronize {
           @config = load_settings()
@@ -286,6 +282,10 @@ module IPCam
     ensure
       @camera&.close
       @camera = nil
+
+      snd_thr&.raise(Stop)
+      snd_thr&.join
+
       $logger.info("main") {"camera thread stop"}
     end
     private :camera_thread
@@ -300,7 +300,6 @@ module IPCam
       }
 
     rescue Stop
-      $logger.info("main") {"accept stop request"}
       @clients.each {|c| c[:que] << nil}
 
     ensure

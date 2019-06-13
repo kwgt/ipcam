@@ -338,6 +338,8 @@
     previewCanvas.width  = imageWidth;
     previewCanvas.height = imageHeight;
 
+    clearPreviewCanvas();
+
     setTimeout(() => {
       $('div#preview').getNiceScroll().resize();
     }, 0);
@@ -443,6 +445,8 @@
       $('select#framerate > option').remove();
       $('div#controls').empty();
     }
+
+    $('button#action').prop('disabled', false);
   }
 
   function startSession() {
@@ -506,6 +510,7 @@
     $('button#action')
       .on('click', () => {
         clearPreviewCanvas();
+        $('button#action').prop('disabled', true);
 
         switch (cameraState) {
         case "STOP":

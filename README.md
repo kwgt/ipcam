@@ -25,6 +25,7 @@ options:
         --bind=ADDR
         --port=PORT
     -d, --database-file=FILE
+    -e, --extend-header
         --log-file=FILE
         --log-age=AGE
         --log-size=SIZE
@@ -47,6 +48,9 @@ Then connect to port 4567 by http browser and operate. The accessible URLs are a
 
   <dt>-d, --database-file=FILE</dt>
   <dd>Specify the file name to save the camera setting value. by default, it tries to save to "~/.ipcam.db".</dd>
+
+  <dt>-e, --extend-header</dt>
+  <dd>Add extend header to part data (for debug).</dd>
 
   <dt>--log-file=FILE</dt>
   <dd></dd>
