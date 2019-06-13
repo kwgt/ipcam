@@ -444,6 +444,8 @@
       $('select#image-size > option').remove();
       $('select#framerate > option').remove();
       $('div#controls').empty();
+
+      clearPreviewCanvas();
     }
 
     $('button#action').prop('disabled', false);

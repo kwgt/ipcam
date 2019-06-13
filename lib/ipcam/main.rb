@@ -224,10 +224,10 @@ module IPCam
     end
     private :broadcast
 
-    def change_state(state)
+    def change_state(state, force = false)
       flag = @mutex.try_lock
 
-      if @state != state
+      if @state != state or force
         @state = state
         broadcast(:change_state, state)
       end
@@ -267,17 +267,13 @@ module IPCam
         @camera.stop
         retry
 
-      rescue => e
-        change_state(:ABORT)
-        raise(e)
-
       ensure
         @camera.stop if (@camera.busy? rescue false)
       end
 
     rescue => e
       $logger.error("main") {"camera error occured (#{e.message})"}
-      change_state(:ABORT)
+      change_state(:ABORT, :force)
 
     ensure
       @camera&.close
