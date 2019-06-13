@@ -60,6 +60,10 @@ OptionParser.new { |opt|
     $db_file   = Pathname.new(val)
   }
 
+  opt.on('-e', '--extend-header') { |val|
+    $extend_header = true
+  }
+
   opt.on('--log-file=FILE') { |val|
     log[:device] = val
   } 

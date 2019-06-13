@@ -86,18 +86,32 @@ module IPCam
         port << "\r\n"
         app.add_client(queue)
 
+        fc = 0
+
         loop {
           data = queue.deq
           break if not data
 
-          port << <<~EOT.b
-            --#{boundary}
-            Content-Type: image/jpeg\r
-            Content-Length: #{data.bytesize}\r
-            \r
-          EOT
+          if $extend_header
+            port << <<~EOT.b
+              --#{boundary}
+              Content-Type: image/jpeg\r
+              Content-Length: #{data.bytesize}\r
+              X-Frame-Number: #{fc}
+              X-Timestamp: #{(Time.now.to_f * 1000).round}
+              \r
+            EOT
+          else
+            port << <<~EOT.b
+              --#{boundary}
+              Content-Type: image/jpeg\r
+              Content-Length: #{data.bytesize}\r
+              \r
+            EOT
+          end
 
           port << data
+          fc += 1
 
           # データ詰まりを防ぐ為にキューをクリア
           queue.clear
