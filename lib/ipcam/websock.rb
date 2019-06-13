@@ -376,5 +376,31 @@ module IPCam
       return :OK
     end
     remote_public :save_config
+
+    #
+    # カメラの撮影開始
+    #
+    # @return [:OK] 固定値
+    #
+    def start_camera(df)
+      EM.defer {
+        @app.start_camera()
+        df.resolve(:OK)
+      }
+    end
+    remote_async :start_camera
+
+    #
+    # カメラの撮影停止
+    #
+    # @return [:OK] 固定値
+    #
+    def stop_camera(df)
+      EM.defer {
+        @app.stop_camera()
+        df.resolve(:OK)
+      }
+    end
+    remote_async :stop_camera
   end
 end

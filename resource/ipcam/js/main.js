@@ -27,6 +27,8 @@
   var previewCanvas;
   var previewGc;
 
+  var cameraState;
+
   /*
    * declar functions
    */
@@ -40,24 +42,28 @@
     var bg;
     var lb;
 
+    cameraState = state;
+
     switch (state) {
       case "STOP":
       default:
         fg = "royalblue";
-        bg = "white";
+        bg = "rgba(160, 160, 160, 0.5)";
         lb = "START";
+        clearPreviewCanvas();
         break;
 
       case "ALIVE":
         fg = "springgreen";
-        bg = "black";
+        bg = "rgba(0, 0, 0, 0.5)";
         lb = "STOP";
         break;
 
       case "ABORT":
         fg = "crimson";
-        bg = "white";
+        bg = "rgba(160, 160, 160, 0.5)";
         lb = "RECOVER";
+        clearPreviewCanvas();
         break;
     }
 
@@ -433,13 +439,9 @@
         });
 
     } else {
-      $('h6#device-name').text(null);
-
       $('select#image-size > option').remove();
       $('select#framerate > option').remove();
       $('div#controls').empty();
-
-      setupScreenSize();
     }
   }
 
@@ -501,6 +503,22 @@
   }
 
   function setupButtons() {
+    $('button#action')
+      .on('click', () => {
+        clearPreviewCanvas();
+
+        switch (cameraState) {
+        case "STOP":
+        case "ABORT":
+          session.startCamera();
+          break;
+
+        case "ALIVE":
+          session.stopCamera();
+          break;
+        }
+      });
+
     $('button#save-config')
       .on('click', () => {
         session.saveConfig();
@@ -516,6 +534,11 @@
       });
   }
 
+  function clearPreviewCanvas() {
+    previewGc.fillStyle = "black";
+    previewGc.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+  }
+
   function initialize() {
     session       = new Session(WS_URL);
     capabilities  = null;
@@ -529,6 +552,7 @@
 
     setupScreen();
     setupButtons();
+    clearPreviewCanvas();
 
     startSession();
   }

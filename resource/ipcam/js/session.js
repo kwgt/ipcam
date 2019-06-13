@@ -57,5 +57,12 @@ if (!msgpack || !msgpack.rpc) {
       return this.remoteCall('save_config');
     }
 
+    startCamera() {
+      return this.remoteCall('start_camera');
+    }
+
+    stopCamera() {
+      return this.remoteCall('stop_camera');
+    }
   }
 })();

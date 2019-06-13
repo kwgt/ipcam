@@ -66,6 +66,9 @@ module IPCam
     end
 
     get "/stream" do
+      halt 500 if app.abort?
+      halt 404 if app.stop?
+
       boundary = SecureRandom.hex(20)
       queue    = Thread::Queue.new
 

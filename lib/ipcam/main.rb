@@ -23,9 +23,9 @@ module IPCam
       @camera  = nil
       @state   = :STOP
       @img_que = Thread::Queue.new
-      @cam_thr = Thread.new {camera_thread}
-      @snd_thr = Thread.new {sender_thread}
       @clients = []
+
+      start_thread()
 
       WebServer.start(self)
       WebSocket.start(self)
@@ -34,19 +34,34 @@ module IPCam
     end
 
     def stop
-      @cam_thr.join
-
-      @snd_thr.raise(Stop)
-      @snd_thr.join
-
+      stop_thread()
 
       WebServer.stop
       EM.stop
     end
 
+    def start_thread
+      @cam_thr = Thread.new {camera_thread}
+      @snd_thr = Thread.new {sender_thread}
+    end
+    private :start_thread
+
+    def stop_thread
+      @cam_thr.raise(Stop)
+      @cam_thr.join
+
+      @snd_thr.raise(Stop)
+      @snd_thr.join
+
+      @cam_thr = nil
+      @snd_thr = nil
+    end
+    private :stop_thread
+
     def restart_camera
       @cam_thr.raise(Restart)
     end
+    private :restart_camera
 
     def select_capabilities(cam)
       ret = cam.frame_capabilities(:MJPEG).instance_eval {
@@ -291,6 +306,7 @@ module IPCam
     ensure
       $logger.info("main") {"sender thread stop"}
     end
+    private:sender_thread
 
     def get_camera_info
       @mutex.synchronize {
@@ -369,6 +385,30 @@ module IPCam
 
     def remove_client(que)
       @clients.reject! {|c| c[:que] == que}
+    end
+
+    def start_camera
+      raise("state violation") if @state != :STOP and @state != :ABORT
+
+      start_thread()
+    end
+
+    def stop_camera
+      raise("state violation") if @state != :ALIVE
+
+      stop_thread()
+    end
+
+    def alive?
+      @state == :ALIVE
+    end
+
+    def abort?
+      @state == :ABORT
+    end
+
+    def stop?
+      @state == :STOP
     end
   end
 end
