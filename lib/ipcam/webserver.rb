@@ -97,7 +97,7 @@ module IPCam
           port << data
 
           # データ詰まりを防ぐ為にキューをクリア
-          queue.clean
+          queue.clear
         }
       end
     end

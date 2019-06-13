@@ -106,7 +106,7 @@ module IPCam
           addr = $bind_addr
         end
 
-        return "tcp://#{addr}:#{$http_port}"
+        return "tcp://#{addr}:#{$ws_port}"
       end
       private :bind_url
 

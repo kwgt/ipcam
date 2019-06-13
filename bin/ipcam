@@ -52,7 +52,7 @@ OptionParser.new { |opt|
   }
 
   opt.on('--port=PORT', Integer) { |val|
-    $bind_port = val
+    $http_port = val
     $ws_port   = val + 1
   }
 
