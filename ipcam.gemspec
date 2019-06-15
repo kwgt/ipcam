@@ -38,7 +38,7 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_dependency "v4l2-ruby", "~> 0.9.2"
+  spec.add_dependency "v4l2-ruby", "~> 0.10.0"
   spec.add_dependency "puma", "~> 3.12.1"
   spec.add_dependency "sinatra", "~> 2.0.5"
   spec.add_dependency "sinatra-contrib", "~> 2.0.5"
