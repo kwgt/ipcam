@@ -8,7 +8,6 @@
 #
 
 require 'sinatra/base'
-require 'sinatra/streaming'
 require 'puma'
 require 'puma/configuration'
 require 'puma/events'
@@ -65,58 +64,91 @@ module IPCam
       erb :settings
     end
 
+    head "/stream" do
+      halt 500 if app.abort?
+      halt 404 if app.stop?
+      halt 503 if not env["rack.hijack?"]
+
+      headers = {
+        "Content-Type" =>"multipart/x-mixed-replace;",
+        "Connection"   => "close",
+      }
+
+      [200, headers, nil]
+    end
+
     get "/stream" do
       halt 500 if app.abort?
       halt 404 if app.stop?
+      halt 503 if not env["rack.hijack?"]
 
       boundary = SecureRandom.hex(20)
       queue    = Thread::Queue.new
+      headers  = {
+        "Content-Type"   =>"multipart/x-mixed-replace; boundary=#{boundary}",
+        "Connection"     => "close",
 
-      content_type("multipart/x-mixed-replace; boundary=#{boundary}")
+        # Rackのhijack API経由で生ソケットを用いてストリーミングを行う
+        "rack.hijack"    => -> (sock) {
+          begin
+            app.add_client(queue)
 
-      # pumaで:keep_openが動作しないのでちょっと面倒な方法で
-      # 対応
-      stream do |port|
-        port.callback {
-          app.remove_client(queue)
-          queue.clear
-          queue << nil
-        }
+            sock.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_QUICKACK, 1)
+            sock.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
 
-        port << "\r\n"
-        app.add_client(queue)
+            sock.write("\r\n".b)
+            sock.flush
 
-        fc = 0
+            fc = 0
 
-        loop {
-          data = queue.deq
-          break if not data
+            loop {
+              body = queue.deq
+              break if not body
 
-          if $extend_header
-            port << <<~EOT.b
-              --#{boundary}
-              Content-Type: image/jpeg\r
-              Content-Length: #{data.bytesize}\r
-              X-Frame-Number: #{fc}
-              X-Timestamp: #{(Time.now.to_f * 1000).round}
-              \r
-            EOT
-          else
-            port << <<~EOT.b
-              --#{boundary}
-              Content-Type: image/jpeg\r
-              Content-Length: #{data.bytesize}\r
-              \r
-            EOT
+              if $extend_header
+                header = <<~EOT.b
+                  --#{boundary}
+                  Content-Type: image/jpeg\r
+                  Content-Length: #{body.bytesize}\r
+                  X-Frame-Number: #{fc}
+                  X-Timestamp: #{(Time.now.to_f * 1000).round}
+                  \r
+                EOT
+              else
+                header = <<~EOT.b
+                  --#{boundary}
+                  Content-Type: image/jpeg\r
+                  Content-Length: #{body.bytesize}\r
+                  \r
+                EOT
+              end
+
+              sock.write(header, body)
+              sock.flush
+              fc += 1
+
+              # データ詰まりを防ぐ為にキューをクリア
+              queue.clear
+            }
+
+          rescue
+            # ignore
+
+          ensure
+            sock.close
+
+            app.remove_client(queue)
+            queue.clear
           end
-
-          port << data
-          fc += 1
-
-          # データ詰まりを防ぐ為にキューをクリア
-          queue.clear
         }
+      }
+
+      # ↓力業でsinatraがContent-Lengthを付与仕様とするのを抑止している
+      def response.calculate_content_length?
+        return false
       end
+
+      [200, headers, nil]
     end
 
     get %r{/css/(.+).scss} do |name|
