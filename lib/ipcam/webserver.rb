@@ -13,6 +13,7 @@ require 'puma/configuration'
 require 'puma/events'
 require 'eventmachine'
 require 'securerandom'
+require 'digest/md5'
 
 module IPCam
   class WebServer < Sinatra::Base
@@ -184,13 +185,27 @@ module IPCam
     class << self
       if $use_dauth
         def new(*)
-          ret = Rack::Auth::Digest::MD5.new(super) {|user| $pwd_db[user]}
+          ret = Rack::Auth::Digest::MD5.new(super) {|user| $passwd_db[user]}
 
           ret.realm            = TRADITIONAL_NAME
           ret.opaque           = SecureRandom.alphanumeric(32)
           ret.passwords_hashed = true
 
           return ret
+        end
+
+        def make_a1_string(user, pass)
+          return Digest::MD5.hexdigest("#{user}:#{TRADITIONAL_NAME}:#{pass}")
+        end
+        private :make_a1_string
+
+        def add_user(user, pass)
+          $passwd_db[user] = make_a1_string(user, pass)
+
+          $passwd_file.open("w") { |f|
+            f.chmod(0o600)
+            f.write($passwd_db.to_yaml)
+          }
         end
       end
 

@@ -11,7 +11,6 @@ require 'pathname'
 require 'optparse'
 require 'logger'
 require 'yaml'
-require 'digest/md5'
 
 Thread.abort_on_exception = true
 
@@ -46,50 +45,28 @@ OptionParser.new { |opt|
     :level      => :INFO
   }
 
-  opt.version  = IPCam::VERSION
-  opt.banner  += " [DEVICE-FILE]"
+  opt.version = IPCam::VERSION
+  opt.banner += " [DEVICE-FILE]"
 
   opt.on('--use-ssl') {
-    $use_ssl   = true
+    $use_ssl = true
   }
 
   opt.on('--ssl-cert=CRT-FILE', String) { |val|
-    $ssl_cert  = val
+    $ssl_cert = val
   }
 
   opt.on('--ssl-key=KEY-FILE', String) { |val|
-    $ssl_key   = val
+    $ssl_key = val
   }
 
   opt.on('-D', '--digest-auth=FILE', String) { |val|
-    $use_dauth = true
-    $pwd_file  = Pathname.new(val)
-
-    if $pwd_file.exist?
-      if $pwd_file.world_readable? || $pwd_file.world_writable?
-        raise("password file shall be not world readble/writable")
-      end
-
-      $pwd_db  = YAML.load_file(val)
-    else
-
-      $pwd_db  = {}
-    end
+    $use_dauth   = true
+    $passwd_file = Pathname.new(val)
   }
 
-  opt.on('-A', '--add-user=USER,PASSWD', Array) { |val|
-    raise("passwd file is not specified") if not $pwd_db
-    raise("user \"#{val[0]}\" is already exist") if $pwd_db.include?(val[0])
-
-    $pwd_db[val[0]] = \
-          Digest::MD5.hexdigest("#{val[0]}:#{TRADITIONAL_NAME}:#{val[1]}")
-
-    $pwd_file.open("w") { |f|
-      f.chmod(0o600)
-      f.write($pwd_db.to_yaml)
-    }
-
-    exit
+  opt.on('-A', '--add-user-mode') {
+    $add_user_mode = true
   }
 
   opt.on('--bind=ADDR') { |val|
@@ -102,7 +79,7 @@ OptionParser.new { |opt|
   }
 
   opt.on('-d', '--database-file=FILE') { |val|
-    $db_file   = Pathname.new(val)
+    $db_file = Pathname.new(val)
   }
 
   opt.on('-e', '--extend-header') { |val|
@@ -147,25 +124,50 @@ OptionParser.new { |opt|
     $log_device = STDOUT
   end
 
-  $logger      = Logger.new($log_device,
-				                    log[:shift_age],
-                            log[:shift_size],
-                            :level => log[:level],
-                            :datetime_format => "%Y-%m-%dT%H:%M:%S")
+  $logger = Logger.new($log_device,
+				               log[:shift_age],
+                       log[:shift_size],
+                       :level => log[:level],
+                       :datetime_format => "%Y-%m-%dT%H:%M:%S")
 
   $bind_addr ||= "::"
   $http_port ||= 4567
   $ws_port   ||= 4568
   $db_file   ||= Pathname.new(ENV['HOME']) + ".#{APP_NAME}.db"
-  $target      = ARGV[0] || "/dev/video0"
 
   if $db_file.exist? and (not $db_file.writable?)
     raise("#{$db_file.to_s} is not writable")
   end
 
   if $use_ssl
+    $ssl_cert ||= ENV["SSL_CERT_FILE"]
+    $ssl_key  ||= ENV["SSL_KEY_FILE"]
+
     raise("SSL cert file not specified") if not $ssl_cert
     raise("SSL key file not specified") if not $ssl_key
+  end
+
+  if $use_dauth 
+    if $passwd_file.exist?
+      if $passwd_file.world_readable? || $passwd_file.world_writable?
+        raise("password file shall be not world readble/writable")
+      end
+
+      $passwd_db = YAML.load_file($passwd_file)
+      raise("invalid password db") if not $passwd_db.kind_of?(Hash)
+    else
+
+      $passwd_db = {}
+    end
+  end
+
+  if $add_user_mode
+    raise("password file is not specified") if not $passwd_db
+    raise("user name is not specified") if not ARGV[0]
+    raise("password is not specified") if not ARGV[1]
+
+  else
+    $target = ARGV[0] || "/dev/video0"
   end
 }
 
@@ -179,4 +181,10 @@ require "#{APP_LIB_DIR + "websock"}"
 #
 # アプリケーションの起動
 #
+
+if $add_user_mode
+  IPCam::WebServer.add_user(ARGV[0], ARGV[1])
+  exit
+end
+
 IPCam.start
