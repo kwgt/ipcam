@@ -50,10 +50,22 @@ module IPCam
 
         return nil
       end
+
+      def websock_url
+        return "#{($use_ssl)? "wss":"ws"}://${location.hostname}:#{$ws_port}"
+      end
     end
 
     get "/" do
       redirect "/main"
+    end
+
+    get "/js/const.js" do
+      content_type("text/javascript")
+
+      <<~EOS
+        const WEBSOCK_URL = `#{websock_url}`; 
+      EOS
     end
 
     get "/main" do
@@ -93,8 +105,10 @@ module IPCam
           begin
             app.add_client(queue)
 
-            sock.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_QUICKACK, 1)
-            sock.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
+            if sock.kind_of?(TCPSocket)
+              sock.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_QUICKACK, 1)
+              sock.setsockopt(Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1)
+            end
 
             sock.write("\r\n".b)
             sock.flush
@@ -107,23 +121,24 @@ module IPCam
 
               if $extend_header
                 header = <<~EOT.b
-                  --#{boundary}
+                  --#{boundary}\r
                   Content-Type: image/jpeg\r
                   Content-Length: #{body.bytesize}\r
-                  X-Frame-Number: #{fc}
-                  X-Timestamp: #{(Time.now.to_f * 1000).round}
+                  X-Frame-Number: #{fc}\r
+                  X-Timestamp: #{(Time.now.to_f * 1000).round}\r
                   \r
                 EOT
               else
                 header = <<~EOT.b
-                  --#{boundary}
+                  --#{boundary}\r
                   Content-Type: image/jpeg\r
                   Content-Length: #{body.bytesize}\r
                   \r
                 EOT
               end
 
-              sock.write(header, body)
+              sock.write(header)
+              sock.write(body)
               sock.flush
               fc += 1
 
@@ -143,7 +158,7 @@ module IPCam
         }
       }
 
-      # ↓力業でsinatraがContent-Lengthを付与仕様とするのを抑止している
+      # ↓力業でsinatraがContent-Lengthを付与するのを抑止している
       def response.calculate_content_length?
         return false
       end
@@ -167,6 +182,18 @@ module IPCam
     end
 
     class << self
+      if $use_dauth
+        def new(*)
+          ret = Rack::Auth::Digest::MD5.new(super) {|user| $pwd_db[user]}
+
+          ret.realm            = TRADITIONAL_NAME
+          ret.opaque           = SecureRandom.alphanumeric(32)
+          ret.passwords_hashed = true
+
+          return ret
+        end
+      end
+
       def bind_url
         if $bind_addr.include?(":")
           addr = "[#{$bind_addr}]" if $bind_addr.include?(":")
@@ -174,7 +201,13 @@ module IPCam
           addr = $bind_addr
         end
 
-        return "tcp://#{addr}:#{$http_port}"
+        if $use_ssl
+          ret = "ssl://#{addr}:#{$http_port}?key=#{$ssl_key}&cert=#{$ssl_cert}"
+        else
+          ret = "tcp://#{addr}:#{$http_port}"
+        end
+
+        return ret
       end
       private :bind_url
 

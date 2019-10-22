@@ -9,8 +9,6 @@
    * define constants
    */
 
-  const WS_URL = `ws://${location.hostname}:${parseInt(location.port)+1}/`;
-
   /*
    * declar package global variabled
    */
@@ -547,7 +545,7 @@
   }
 
   function initialize() {
-    session       = new Session(WS_URL);
+    session       = new Session(WEBSOCK_URL);
     capabilities  = null;
     controls      = null;
     sliders       = null;

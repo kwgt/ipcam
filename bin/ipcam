@@ -10,6 +10,8 @@
 require 'pathname'
 require 'optparse'
 require 'logger'
+require 'yaml'
+require 'digest/md5'
 
 Thread.abort_on_exception = true
 
@@ -46,6 +48,49 @@ OptionParser.new { |opt|
 
   opt.version  = IPCam::VERSION
   opt.banner  += " [DEVICE-FILE]"
+
+  opt.on('--use-ssl') {
+    $use_ssl   = true
+  }
+
+  opt.on('--ssl-cert=CRT-FILE', String) { |val|
+    $ssl_cert  = val
+  }
+
+  opt.on('--ssl-key=KEY-FILE', String) { |val|
+    $ssl_key   = val
+  }
+
+  opt.on('-D', '--digest-auth=FILE', String) { |val|
+    $use_dauth = true
+    $pwd_file  = Pathname.new(val)
+
+    if $pwd_file.exist?
+      if $pwd_file.world_readable? || $pwd_file.world_writable?
+        raise("password file shall be not world readble/writable")
+      end
+
+      $pwd_db  = YAML.load_file(val)
+    else
+
+      $pwd_db  = {}
+    end
+  }
+
+  opt.on('-A', '--add-user=USER,PASSWD', Array) { |val|
+    raise("passwd file is not specified") if not $pwd_db
+    raise("user \"#{val[0]}\" is already exist") if $pwd_db.include?(val[0])
+
+    $pwd_db[val[0]] = \
+          Digest::MD5.hexdigest("#{val[0]}:#{TRADITIONAL_NAME}:#{val[1]}")
+
+    $pwd_file.open("w") { |f|
+      f.chmod(0o600)
+      f.write($pwd_db.to_yaml)
+    }
+
+    exit
+  }
 
   opt.on('--bind=ADDR') { |val|
     $bind_addr = val
@@ -116,6 +161,11 @@ OptionParser.new { |opt|
 
   if $db_file.exist? and (not $db_file.writable?)
     raise("#{$db_file.to_s} is not writable")
+  end
+
+  if $use_ssl
+    raise("SSL cert file not specified") if not $ssl_cert
+    raise("SSL key file not specified") if not $ssl_key
   end
 }
 

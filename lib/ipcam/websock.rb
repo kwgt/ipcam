@@ -106,7 +106,7 @@ module IPCam
           addr = $bind_addr
         end
 
-        return "tcp://#{addr}:#{$ws_port}"
+        return "#{($use_ssl)? "ssl":"tcp"}://#{addr}:#{$ws_port}"
       end
       private :bind_url
 
@@ -121,7 +121,17 @@ module IPCam
 
           $logger.info("websock") {"started (#{bind_url()})"}
 
-          EM::WebSocket.start(:host => $bind_addr, :port => $ws_port) { |sock|
+          opts = {
+            :host        => $bind_addr,
+            :port        => $ws_port,
+            :secure      => $use_ssl,
+            :tls_options => {
+              :private_key_file => $ssl_key,
+              :cert_chain_file  => $ssl_cert
+            }
+          }
+
+          EM::WebSocket.start(opts) { |sock|
             peer = Socket.unpack_sockaddr_in(sock.get_peername)
             addr = peer[1]
             port = peer[0]
