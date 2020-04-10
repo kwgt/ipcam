@@ -36,15 +36,15 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = ">= 2.4.0"
 
-  spec.add_development_dependency "bundler", "~> 2.0"
-  spec.add_development_dependency "rake", "~> 10.0"
+  spec.add_development_dependency "bundler", ">= 2.1"
+  spec.add_development_dependency "rake", ">= 12.3.3"
   spec.add_dependency "v4l2-ruby", "~> 0.10.0"
-  spec.add_dependency "puma", "~> 3.12.1"
+  spec.add_dependency "puma", "~> 4.3.3"
   spec.add_dependency "sinatra", "~> 2.0.5"
   spec.add_dependency "sinatra-contrib", "~> 2.0.5"
   spec.add_dependency "sassc", "~> 2.0.1"
   spec.add_dependency "eventmachine", "~> 1.2.7"
   spec.add_dependency "em-websocket", "~> 0.5.1"
   spec.add_dependency "msgpack", "~> 1.2.6"
-  spec.add_dependency "msgpack-rpc-stack", "~> 0.6.3"
+  spec.add_dependency "msgpack-rpc-stack", "~> 0.7.1"
 end
